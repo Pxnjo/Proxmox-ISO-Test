@@ -59,6 +59,17 @@ def clone_vm(templateId):
     else:
         print(f"VM clone failed: {describe_errors(response)}")
         return
+def check_if_cloned(vmid):
+    url = f"{base_url}/qemu/{vmid}/status/current"
+    attempt = 0
+    while attempt < 3:
+        response = metodo('get', url, headers)
+        if response.status_code == 200:
+            return True
+        else:
+            time.sleep(10)
+            attempt += 1
+    return False
 
 #Resize disk
 def resize_disk(check_if_cloned): #si assicura che la macchina sia clonata prima di fare il resize del disk
@@ -476,6 +487,7 @@ i = 0
 ip_addr = ''
 while True:
     vmid = clone_vm(templateId) # definisce il primo vmid disponibile
+    status = check_if_cloned(vmid)
     if vmid is not None:
         print("-----------------------------\nSetting Proxmox configuration\n-----------------------------")
         resize_disk(vmid) # fa il resize del disco su proxmox
