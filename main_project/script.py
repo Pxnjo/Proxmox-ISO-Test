@@ -178,20 +178,25 @@ def get_IPvm(boot_counter = None, timeout=120):
     while True:
         url = f"{base_url}/qemu/{vmid}/agent/network-get-interfaces"
         response = metodo('get', url, headers)
-        if response.status_code != 200 or response.json()['data']['result'][1] is None or 'ip-addresses' not in response.json()['data']['result'][1]: # Se non trova la scritta ip-addresses riprova
-            time.sleep(10)
-        elif response.json()['data']['result'][1]['ip-addresses'][0]['ip-address-type'] != 'ipv4': # Se ip-addresses esiste ma l'ip è vuoto riprova
-            time.sleep(5)
-        else:
-            ip_addr = response.json()['data']['result'][1]['ip-addresses'][0]['ip-address']
-            print(f'L\'ip della nuova VM è: {ip_addr}')
-            return ip_addr # se ottengo l'ip address vuol dire che la macchina parte
-        if time.time() - start_time > timeout: # timeout se non trova l'ip
-            print("Unable to get VM IP after 2min")
-            if boot_counter == 0:
-                return 1 # se era il primo tentativo di boot in uefi allora ritorna 1 per impostare il boot in bios
+        if response.status_code == 200:
+            json_data = response.json()
+            interfaces = json_data.get('data', {}).get('result', [])
+            if len(interfaces) < 2 or not response.json()['data']['result'][1] or 'ip-addresses' not in response.json()['data']['result'][1]: # Se non trova la scritta ip-addresses riprova
+                time.sleep(10)
+            elif response.json()['data']['result'][1]['ip-addresses'][0]['ip-address-type'] != 'ipv4': # Se ip-addresses esiste ma l'ip è vuoto riprova
+                time.sleep(5)
             else:
-                return 2 # se nemmeno al secondo tentativo non funziona allora la macchina non parte
+                ip_addr = response.json()['data']['result'][1]['ip-addresses'][0]['ip-address']
+                print(f'L\'ip della nuova VM è: {ip_addr}')
+                return ip_addr # se ottengo l'ip address vuol dire che la macchina parte
+            if time.time() - start_time > timeout: # timeout se non trova l'ip
+                print("Unable to get VM IP after 3min")
+                if boot_counter == 0:
+                    return 1 # se era il primo tentativo di boot in uefi allora ritorna 1 per impostare il boot in bios
+                else:
+                    return 2 # se nemmeno al secondo tentativo non funziona allora la macchina non parte
+        else:
+            time.sleep(10)
 
 # set Boot mode in BIOS
 def set_boot_mode(boot_counter):
